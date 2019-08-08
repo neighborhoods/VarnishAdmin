@@ -72,45 +72,34 @@ class VarnishAdminSocket implements VarnishAdmin
 
     private function checkSupportedVersion()
     {
-        $isUnsupportedVersion = !$this->isFourthVersion() && !$this->isThirdVersion() && !$this->isFifthVersion();
-        if ($isUnsupportedVersion) {
-            throw new \Exception('Only versions 3, 4 and 5 of Varnish are supported');
+        $supportedVersions = array_keys($this->getCommandVersionMap());
+        sort($supportedVersions);
+        if (!in_array($this->version, $supportedVersions, true)) {
+            $lastIndex = count($supportedVersions) - 1;
+            $supportedVersions[$lastIndex] = "and {$supportedVersions[$lastIndex]}";
+            $supportedVersionString = implode(', ', $supportedVersions);
+
+            throw new \Exception("Only versions $supportedVersionString of Varnish are supported");
         }
     }
 
-    /**
-     * @return bool
-     */
-    private function isFifthVersion()
+    private function getCommandVersionMap()
     {
-        return $this->version == CommandsVersion5::NUMBER;
-    }
-
-    /**
-     * @return bool
-     */
-    private function isFourthVersion()
-    {
-        return $this->version == CommandsVersion4::NUMBER;
-    }
-
-    private function isThirdVersion()
-    {
-        return $this->version == CommandsVersion3::NUMBER;
+        return [
+            3 => CommandsVersion3::class,
+            4 => CommandsVersion4::class,
+            5 => CommandsVersion5::class,
+            6 => CommandsVersion5::class, // No changes in version 6
+        ];
     }
 
     private function setDefaultCommands()
     {
-        if ($this->isFourthVersion()) {
-            $this->commands = new CommandsVersion4();
-        }
+        $versions = $this->getCommandVersionMap();
 
-        if ($this->isThirdVersion()) {
-            $this->commands = new CommandsVersion3();
-        }
-
-        if ($this->isFifthVersion()) {
-            $this->commands = new CommandsVersion5();
+        if (isset($versions[$this->version])) {
+            $class = $versions[$this->version];
+            $this->commands = new $class();
         }
     }
 
